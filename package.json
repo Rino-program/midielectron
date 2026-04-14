@@ -1,0 +1,76 @@
+{
+  "name": "audio-midi-bridge",
+  "version": "1.0.0",
+  "description": "Real-time Audio to MIDI conversion application",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "electron-log": "^5.1.2",
+    "electron-store": "^8.2.0",
+    "electron-trpc": "^0.6.0",
+    "jzz": "^1.8.3",
+    "midi-writer-js": "^3.1.1",
+    "naudiodon": "^2.0.8",
+    "midi": "^2.0.0",
+    "pitchfinder": "^2.0.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.2",
+    "@pixi/react": "^7.1.2",
+    "pixi.js": "^7.4.2",
+    "@trpc/client": "^10.45.2",
+    "@trpc/server": "^10.45.2",
+    "zod": "^3.23.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.1.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "vitest": "^1.5.0"
+  },
+  "build": {
+    "appId": "com.audiomidi.bridge",
+    "productName": "AudioMIDI Bridge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron",
+      "dist",
+      "models"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "entitlements": "entitlements.mac.plist",
+      "hardenedRuntime": true
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
