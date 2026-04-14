@@ -1,5 +1,10 @@
 import type { OnsetEvent } from '../../shared/types';
 
+/** Maximum threshold value when sensitivity is 0 (least sensitive). */
+const ONSET_THRESHOLD_MAX = 0.15;
+/** Minimum threshold value when sensitivity is 1 (most sensitive). */
+const ONSET_THRESHOLD_MIN = 0.005;
+
 function computeRMS(buffer: Float32Array): number {
   let sum = 0;
   for (const s of buffer) sum += s * s;
@@ -14,7 +19,7 @@ export class OnsetDetector {
 
   setSensitivity(value: number): void {
     this.sensitivity = Math.max(0, Math.min(1, value));
-    this.threshold = 0.15 * (1 - this.sensitivity) + 0.005;
+    this.threshold = ONSET_THRESHOLD_MAX * (1 - this.sensitivity) + ONSET_THRESHOLD_MIN;
   }
 
   processFrame(buffer: Float32Array): OnsetEvent | null {

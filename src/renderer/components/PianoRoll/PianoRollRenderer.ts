@@ -1,5 +1,8 @@
 import type { ActiveNoteInfo } from '../../../shared/types';
 
+/** Maximum scroll distance (in pixels) to retain note history. Notes older than this are pruned. */
+const MAX_NOTE_HISTORY_SCROLL_UNITS = 5000;
+
 export interface NoteBar {
   note: number;
   velocity: number;
@@ -142,7 +145,7 @@ export class PianoRollRenderer {
   }
 
   // Prune old note history to prevent memory growth
-  pruneHistory(maxAgeScrollUnits = 5000): void {
+  pruneHistory(maxAgeScrollUnits = MAX_NOTE_HISTORY_SCROLL_UNITS): void {
     const threshold = this.scrollX - maxAgeScrollUnits;
     this.noteHistory = this.noteHistory.filter(
       (n) => n.endX === null || n.endX > threshold

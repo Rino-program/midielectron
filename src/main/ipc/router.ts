@@ -52,7 +52,64 @@ export const appRouter = t.router({
   }),
 
   updateSettings: t.procedure
-    .input(z.object({ settings: z.unknown() }))
+    .input(
+      z.object({
+        settings: z.object({
+          audio: z
+            .object({
+              inputDeviceId: z.string().optional(),
+              captureMode: z.enum(['loopback', 'microphone', 'virtual-device']).optional(),
+              sampleRate: z.union([z.literal(44100), z.literal(48000)]).optional(),
+              frameSize: z
+                .union([z.literal(512), z.literal(1024), z.literal(2048)])
+                .optional(),
+              silenceThreshold: z.number().min(0).max(1).optional(),
+            })
+            .optional(),
+          pitch: z
+            .object({
+              detectionMode: z
+                .enum(['high-accuracy', 'polyphonic', 'low-latency'])
+                .optional(),
+              minConfidence: z.number().min(0).max(1).optional(),
+              minFrequency: z.number().positive().optional(),
+              maxFrequency: z.number().positive().optional(),
+              onsetSensitivity: z.number().min(0).max(1).optional(),
+              smoothingWindowMs: z.number().nonnegative().optional(),
+            })
+            .optional(),
+          midi: z
+            .object({
+              outputPortIndex: z.number().int().optional(),
+              channel: z.number().int().min(1).max(16).optional(),
+              velocityMode: z.enum(['fixed', 'dynamic']).optional(),
+              fixedVelocity: z.number().int().min(0).max(127).optional(),
+              minNoteDurationMs: z.number().nonnegative().optional(),
+              maxPolyphony: z.number().int().positive().optional(),
+              pitchBendEnabled: z.boolean().optional(),
+              transposeOctaves: z.number().int().min(-4).max(4).optional(),
+              transposeNotes: z.number().int().min(-12).max(12).optional(),
+            })
+            .optional(),
+          visualizer: z
+            .object({
+              scrollSpeedPxPerSec: z.number().positive().optional(),
+              displayRangeMin: z.number().int().min(0).max(127).optional(),
+              displayRangeMax: z.number().int().min(0).max(127).optional(),
+              showVelocity: z.boolean().optional(),
+              theme: z.enum(['dark', 'light']).optional(),
+            })
+            .optional(),
+          recording: z
+            .object({
+              defaultSavePath: z.string().optional(),
+              tempo: z.number().positive().optional(),
+              autoSave: z.boolean().optional(),
+            })
+            .optional(),
+        }),
+      })
+    )
     .mutation(async ({ input }) => {
       appEvents.emit('updateSettings', input.settings);
       return { success: true };

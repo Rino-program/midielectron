@@ -5,6 +5,11 @@ import type {
   ActiveNoteInfo,
 } from '../../shared/types';
 
+/** Cents deviation above which an active note is re-triggered (half-semitone). */
+const RETRIGGER_CENTS_THRESHOLD = 50;
+/** Scale factor used in dynamic velocity calculation. */
+const VELOCITY_DYNAMIC_SCALE = 4;
+
 export function frequencyToMidi(frequency: number): number {
   if (frequency <= 0) return -1;
   return Math.round(69 + 12 * Math.log2(frequency / 440.0));
@@ -117,7 +122,7 @@ export class MIDIConverter {
       if (existing) {
         // Note is already active - check for large pitch deviation (>50 cents)
         const cents = Math.abs(frequencyToCentsOffset(pitch.frequency, raw));
-        if (cents > 50) {
+        if (cents > RETRIGGER_CENTS_THRESHOLD) {
           // Re-trigger
           events.push({ type: 'noteOff', channel: ch, note, velocity: 0, timestamp: now });
           const velocity = this.calcVelocity(pitch.confidence, result.rms);
@@ -153,7 +158,7 @@ export class MIDIConverter {
       return this.config.fixedVelocity;
     }
     // Dynamic: combine confidence and RMS amplitude
-    const vel = Math.round(confidence * rms * 4 * 127);
+    const vel = Math.round(confidence * rms * VELOCITY_DYNAMIC_SCALE * 127);
     return Math.max(1, Math.min(127, vel));
   }
 }

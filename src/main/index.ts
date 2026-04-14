@@ -135,8 +135,9 @@ function setupIPC(): void {
   ipcMain.handle('startCapture', async (_event, deviceIdStr: string) => {
     if (capturing) return;
     const settings = appState.getSettings();
+    const parsedDeviceId = parseInt(deviceIdStr, 10);
     audioCaptureEngine.initialize({
-      deviceId: parseInt(deviceIdStr, 10),
+      deviceId: Number.isNaN(parsedDeviceId) ? 0 : parsedDeviceId,
       sampleRate: settings.audio.sampleRate,
       frameSize: settings.audio.frameSize,
     });

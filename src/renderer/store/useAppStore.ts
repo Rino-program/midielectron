@@ -54,7 +54,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   updateSettings(partial) {
     const current = get().settings;
-    const updated = { ...current, ...partial };
+    // Deep-merge each top-level section so nested fields are preserved
+    const updated: AppSettings = {
+      audio: { ...current.audio, ...(partial.audio ?? {}) },
+      pitch: { ...current.pitch, ...(partial.pitch ?? {}) },
+      midi: { ...current.midi, ...(partial.midi ?? {}) },
+      visualizer: { ...current.visualizer, ...(partial.visualizer ?? {}) },
+      recording: { ...current.recording, ...(partial.recording ?? {}) },
+    };
     set({ settings: updated });
     window.electron?.ipcRenderer?.invoke('updateSettings', updated);
   },
