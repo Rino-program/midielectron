@@ -56,6 +56,7 @@ export default function App(): React.ReactElement {
     stopCapture,
     startRecording,
     stopRecording,
+    updateSettings,
     setAudioLevel,
     setActiveNote,
     removeActiveNote,
@@ -114,9 +115,13 @@ export default function App(): React.ReactElement {
     if (e.code === 'Space') {
       e.preventDefault();
       isCapturing ? stopCapture() : startCapture();
-    } else if (e.code === 'KeyR') {
+    } else if (e.code === 'KeyR' && !e.ctrlKey && !e.metaKey) {
       isRecording ? stopRecording() : startRecording();
+    } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
+      e.preventDefault();
+      if (isRecording) stopRecording();
     } else if ((e.ctrlKey || e.metaKey) && e.code === 'Comma') {
+      e.preventDefault();
       setShowSettings((v) => !v);
     } else if (e.code === 'Escape') {
       setShowSettings(false);
@@ -155,7 +160,7 @@ export default function App(): React.ReactElement {
         <select
           style={styles.select}
           value={settings.pitch.detectionMode}
-          onChange={(e) => useAppStore.getState().updateSettings({
+          onChange={(e) => updateSettings({
             pitch: { ...settings.pitch, detectionMode: e.target.value as import('../shared/types').DetectionMode }
           })}
         >
@@ -204,7 +209,7 @@ export default function App(): React.ReactElement {
         <SettingsPanel
           settings={settings}
           onClose={() => setShowSettings(false)}
-          onSave={(s) => useAppStore.getState().updateSettings(s)}
+          onSave={(s) => updateSettings(s)}
         />
       )}
     </div>

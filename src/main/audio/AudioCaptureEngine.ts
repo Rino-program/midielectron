@@ -78,8 +78,14 @@ export class AudioCaptureEngine extends EventEmitter {
   }
 
   initialize(config: CaptureConfig): void {
+    // Stop any running stream before reinitializing
+    if (this.running) {
+      this.stop();
+    }
     this.config = config;
-    // Pre-allocate ring buffer slots
+    // Reset and pre-allocate ring buffer slots
+    this.ringBuffer = [];
+    this.ringWriteIdx = 0;
     for (let i = 0; i < RING_BUFFER_SIZE; i++) {
       this.ringBuffer.push(new Float32Array(config.frameSize));
     }

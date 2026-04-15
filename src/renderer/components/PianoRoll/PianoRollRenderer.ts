@@ -72,6 +72,7 @@ export class PianoRollRenderer {
     this.lastTime = now;
     this.scrollX += this.scrollSpeedPxPerSec * dt;
 
+    this.pruneHistory();
     this.render();
     this.animFrameId = requestAnimationFrame(() => this.loop());
   }

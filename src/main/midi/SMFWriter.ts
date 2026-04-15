@@ -20,9 +20,9 @@ export class SMFWriter {
     this.ppq = ppq;
   }
 
-  startRecording(): void {
+  startRecording(startTime?: number): void {
     this.events = [];
-    this.startTime = Date.now();
+    this.startTime = startTime ?? Date.now();
     this.recording = true;
   }
 
@@ -35,6 +35,10 @@ export class SMFWriter {
     const elapsedMs = note.timestamp - this.startTime;
     const tick = Math.round((elapsedMs / 1000) * (this.tempo / 60) * this.ppq);
     this.events.push({ ...note, tick });
+  }
+
+  getEventCount(): number {
+    return this.events.length;
   }
 
   export(filePath: string): void {

@@ -18,15 +18,13 @@ const appState = new AppState();
 const audioCaptureEngine = new AudioCaptureEngine();
 const pitchEngine = new PitchDetectionEngine();
 const onsetDetector = new OnsetDetector();
-let midiConverter: MIDIConverter;
+const midiConverter = new MIDIConverter(); // initialized with defaults; reconfigured in initializeEngines()
 const midiOutput = new MIDIOutputManager();
 const smfWriter = new SMFWriter();
 let capturing = false;
 let recording = false;
 
 function createWindow(): void {
-  const settings = appState.getSettings();
-
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -54,9 +52,13 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+}
 
-  // Initialize MIDI converter with current settings
-  midiConverter = new MIDIConverter({
+async function initializeEngines(): Promise<void> {
+  const settings = appState.getSettings();
+
+  // Configure MIDI converter from persisted settings (must happen before audio pipeline starts)
+  midiConverter.updateConfig({
     channel: settings.midi.channel,
     velocityMode: settings.midi.velocityMode,
     fixedVelocity: settings.midi.fixedVelocity,
@@ -67,10 +69,6 @@ function createWindow(): void {
     transposeNotes: settings.midi.transposeNotes,
     minNoteDurationMs: settings.midi.minNoteDurationMs,
   });
-}
-
-async function initializeEngines(): Promise<void> {
-  const settings = appState.getSettings();
 
   // Initialize pitch engine
   await pitchEngine.initialize(settings.pitch.detectionMode, settings.audio.sampleRate);
@@ -189,7 +187,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   if (capturing) {
     audioCaptureEngine.stop();
-    const notes = midiConverter?.allNotesOff() ?? [];
+    const notes = midiConverter.allNotesOff();
     for (const note of notes) midiOutput.sendNote(note);
   }
   midiOutput.close();

@@ -1,15 +1,5 @@
 import type { DetectionMode, PitchDetectionResult, PitchInfo } from '../../shared/types';
-
-function frequencyToMidi(frequency: number): number {
-  if (frequency <= 0) return -1;
-  return Math.round(69 + 12 * Math.log2(frequency / 440.0));
-}
-
-function frequencyToCentsOffset(frequency: number, midiNote: number): number {
-  if (frequency <= 0) return 0;
-  const exactMidi = 69 + 12 * Math.log2(frequency / 440.0);
-  return (exactMidi - midiNote) * 100;
-}
+import { frequencyToMidi, frequencyToCentsOffset } from '../midi/MIDIConverter';
 
 function computeRMS(buffer: Float32Array): number {
   let sum = 0;

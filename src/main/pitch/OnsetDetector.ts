@@ -15,7 +15,8 @@ export class OnsetDetector {
   private sensitivity = 0.5;
   private prevRMS = 0;
   private prevFlux = 0;
-  private threshold = 0.05;
+  // Initialize threshold consistently with default sensitivity=0.5
+  private threshold = ONSET_THRESHOLD_MAX * (1 - 0.5) + ONSET_THRESHOLD_MIN;
 
   setSensitivity(value: number): void {
     this.sensitivity = Math.max(0, Math.min(1, value));

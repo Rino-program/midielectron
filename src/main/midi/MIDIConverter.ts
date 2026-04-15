@@ -80,16 +80,6 @@ export class MIDIConverter {
 
     const transpose = this.config.transposeOctaves * 12 + this.config.transposeNotes;
 
-    // Filter pitches by confidence and map to MIDI notes
-    const wantedNotes = new Set<number>();
-    for (const pitch of result.pitches) {
-      if (pitch.confidence < this.config.minConfidence) continue;
-      const raw = frequencyToMidi(pitch.frequency);
-      const note = raw + transpose;
-      if (note < 0 || note > 127) continue;
-      wantedNotes.add(note);
-    }
-
     // Enforce polyphony limit (keep highest-confidence pitches)
     const sortedByConfidence = result.pitches
       .filter((p) => p.confidence >= this.config.minConfidence)

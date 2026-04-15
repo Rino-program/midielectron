@@ -27,8 +27,15 @@ export class AppState {
   getSettings(): AppSettings {
     if (!this.store) return this.memorySettings;
     try {
-      const saved = this.store.get('settings', DEFAULT_SETTINGS) as AppSettings;
-      return { ...DEFAULT_SETTINGS, ...saved };
+      const saved = this.store.get('settings', {}) as Partial<AppSettings>;
+      // Deep-merge so newly added default keys are always present
+      return {
+        audio: { ...DEFAULT_SETTINGS.audio, ...(saved.audio ?? {}) },
+        pitch: { ...DEFAULT_SETTINGS.pitch, ...(saved.pitch ?? {}) },
+        midi: { ...DEFAULT_SETTINGS.midi, ...(saved.midi ?? {}) },
+        visualizer: { ...DEFAULT_SETTINGS.visualizer, ...(saved.visualizer ?? {}) },
+        recording: { ...DEFAULT_SETTINGS.recording, ...(saved.recording ?? {}) },
+      };
     } catch {
       return this.memorySettings;
     }
