@@ -65,8 +65,6 @@ export default function App(): React.ReactElement {
   const [showSettings, setShowSettings] = useState(false);
   const [audioDevices, setAudioDevices] = useState<{ id: string; name: string }[]>([]);
   const [midiPorts, setMidiPorts] = useState<string[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState('');
-  const [selectedPort, setSelectedPort] = useState(0);
 
   useEffect(() => {
     const ipc = window.electron?.ipcRenderer;
@@ -74,7 +72,10 @@ export default function App(): React.ReactElement {
       ipc.invoke('listAudioDevices').then((devs: unknown) => {
         const devices = devs as { id: string; name: string }[];
         setAudioDevices(devices);
-        if (devices.length > 0) setSelectedDevice(devices[0].id);
+        // Auto-select first device if none is persisted in settings
+        if (devices.length > 0 && !settings.audio.inputDeviceId) {
+          updateSettings({ audio: { inputDeviceId: devices[0].id } });
+        }
       }).catch(console.error);
       ipc.invoke('listMIDIPorts').then((ports: unknown) => {
         setMidiPorts(ports as string[]);
@@ -139,8 +140,8 @@ export default function App(): React.ReactElement {
         <span style={styles.title}>AudioMIDI Bridge</span>
         <select
           style={styles.select}
-          value={selectedDevice}
-          onChange={(e) => setSelectedDevice(e.target.value)}
+          value={settings.audio.inputDeviceId}
+          onChange={(e) => updateSettings({ audio: { inputDeviceId: e.target.value } })}
         >
           {audioDevices.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
@@ -149,8 +150,8 @@ export default function App(): React.ReactElement {
         </select>
         <select
           style={styles.select}
-          value={selectedPort}
-          onChange={(e) => setSelectedPort(Number(e.target.value))}
+          value={settings.midi.outputPortIndex}
+          onChange={(e) => updateSettings({ midi: { outputPortIndex: Number(e.target.value) } })}
         >
           {midiPorts.map((p, i) => (
             <option key={i} value={i}>{p}</option>
