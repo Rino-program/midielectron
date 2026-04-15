@@ -4,6 +4,9 @@ import { resolve } from 'path';
 
 export default defineConfig({
   main: {
+    build: {
+      outDir: resolve('dist-electron/main'),
+    },
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
@@ -12,9 +15,15 @@ export default defineConfig({
     },
   },
   preload: {
+    build: {
+      outDir: resolve('dist-electron/preload'),
+    },
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
+    build: {
+      outDir: resolve('dist-electron/renderer'),
+    },
     plugins: [react()],
     resolve: {
       alias: {

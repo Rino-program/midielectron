@@ -20,6 +20,10 @@ export class SMFWriter {
     this.ppq = ppq;
   }
 
+  setTempo(tempo: number): void {
+    this.tempo = tempo;
+  }
+
   startRecording(startTime?: number): void {
     this.events = [];
     this.startTime = startTime ?? Date.now();

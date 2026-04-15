@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { z } from 'zod';
@@ -64,11 +64,39 @@ const pitchEngine = new PitchDetectionEngine();
 const onsetDetector = new OnsetDetector();
 const midiConverter = new MIDIConverter(); // initialized with defaults; reconfigured in initializeEngines()
 const midiOutput = new MIDIOutputManager();
-const smfWriter = new SMFWriter();
+const smfWriter = new SMFWriter(appState.getSettings().recording.tempo);
 let capturing = false;
 let recording = false;
 let lastAudioLevelTimestamp = 0;
 let lastPitchTimestamp = 0;
+
+function processAudioFrame(buffer: Float32Array): void {
+  const now = Date.now();
+  const rms = buffer.reduce((sum, value) => sum + value * value, 0) / buffer.length;
+  const rmsLevel = Math.sqrt(rms);
+
+  if (now - lastAudioLevelTimestamp >= TELEMETRY_THROTTLE_MS) {
+    mainWindow?.webContents.send('audioLevel', { rms: rmsLevel, timestamp: now });
+    lastAudioLevelTimestamp = now;
+  }
+
+  const onset = onsetDetector.processFrame(buffer);
+  const pitchResult: PitchDetectionResult = pitchEngine.processFrame(buffer);
+
+  if (now - lastPitchTimestamp >= TELEMETRY_THROTTLE_MS) {
+    mainWindow?.webContents.send('pitchDetected', pitchResult);
+    lastPitchTimestamp = now;
+  }
+
+  const midiNotes: MIDINote[] = midiConverter.convert(pitchResult, onset);
+  for (const note of midiNotes) {
+    midiOutput.sendNote(note);
+    mainWindow?.webContents.send('midiNote', note);
+    if (recording) {
+      smfWriter.addNote(note);
+    }
+  }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -143,34 +171,7 @@ async function initializeEngines(): Promise<void> {
 
 function setupAudioPipeline(): void {
   audioCaptureEngine.on('audioFrame', (buffer: Float32Array) => {
-    const now = Date.now();
-    const rms = buffer.reduce((s, v) => s + v * v, 0) / buffer.length;
-    const rmsLevel = Math.sqrt(rms);
-
-    // Throttle audio-level telemetry to ≈30 fps
-    if (now - lastAudioLevelTimestamp >= TELEMETRY_THROTTLE_MS) {
-      mainWindow?.webContents.send('audioLevel', { rms: rmsLevel, timestamp: now });
-      lastAudioLevelTimestamp = now;
-    }
-
-    const onset = onsetDetector.processFrame(buffer);
-    const pitchResult: PitchDetectionResult = pitchEngine.processFrame(buffer);
-
-    // Throttle pitch telemetry to ≈30 fps
-    if (now - lastPitchTimestamp >= TELEMETRY_THROTTLE_MS) {
-      mainWindow?.webContents.send('pitchDetected', pitchResult);
-      lastPitchTimestamp = now;
-    }
-
-    const midiNotes: MIDINote[] = midiConverter.convert(pitchResult, onset);
-    for (const note of midiNotes) {
-      midiOutput.sendNote(note);
-      // MIDI note events are discrete — forward every one immediately
-      mainWindow?.webContents.send('midiNote', note);
-      if (recording) {
-        smfWriter.addNote(note);
-      }
-    }
+    processAudioFrame(buffer);
   });
 
   audioCaptureEngine.on('error', (err: unknown) => {
@@ -182,6 +183,9 @@ function setupAudioPipeline(): void {
 function setupIPC(): void {
   ipcMain.handle('listAudioDevices', () => audioCaptureEngine.listDevices());
   ipcMain.handle('listMIDIPorts', () => midiOutput.listPorts());
+  ipcMain.handle('processAudioFrame', (_event, frame: number[]) => {
+    processAudioFrame(Float32Array.from(frame));
+  });
 
   ipcMain.handle('startCapture', async (_event, deviceIdStr: string) => {
     if (capturing) return;
@@ -214,6 +218,35 @@ function setupIPC(): void {
     if (outputPath) {
       smfWriter.export(outputPath);
     }
+  });
+
+  ipcMain.handle('saveRecording', async () => {
+    if (recording) {
+      smfWriter.stopRecording();
+      recording = false;
+    }
+
+    const settings = appState.getSettings();
+    const defaultPath = settings.recording.defaultSavePath || path.join(app.getPath('documents'), 'recording.mid');
+    const result = await dialog.showSaveDialog(mainWindow ?? undefined, {
+      defaultPath,
+      filters: [{ name: 'MIDI files', extensions: ['mid', 'midi'] }],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, canceled: true };
+    }
+
+    smfWriter.export(result.filePath);
+    appState.saveSettings({
+      ...settings,
+      recording: {
+        ...settings.recording,
+        defaultSavePath: path.dirname(result.filePath),
+      },
+    });
+
+    return { success: true, filePath: result.filePath };
   });
 
   ipcMain.handle('updateSettings', (_event, newSettings: unknown) => {
@@ -253,6 +286,10 @@ function setupIPC(): void {
         log.error(`MIDI port re-open failed: ${err}`);
         try { midiOutput.openVirtualPort('AudioMIDI Bridge'); } catch { /* ignore */ }
       }
+    }
+
+    if (parsed.data.recording.tempo !== previous.recording.tempo) {
+      smfWriter.setTempo(parsed.data.recording.tempo);
     }
   });
 }
