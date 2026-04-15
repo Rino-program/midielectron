@@ -9,8 +9,10 @@ import { MIDIConverter } from './midi/MIDIConverter';
 import { MIDIOutputManager } from './midi/MIDIOutputManager';
 import { SMFWriter } from './midi/SMFWriter';
 import { AppState } from './store/AppState';
-import { appEvents } from './ipc/router';
 import type { AppSettings, PitchDetectionResult, MIDINote } from '../shared/types';
+
+/** Minimum interval (ms) between telemetry pushes to the renderer (≈30 fps). */
+const TELEMETRY_THROTTLE_MS = 33;
 
 const settingsUpdateSchema = z.object({
   audio: z.object({
@@ -65,6 +67,8 @@ const midiOutput = new MIDIOutputManager();
 const smfWriter = new SMFWriter();
 let capturing = false;
 let recording = false;
+let lastAudioLevelTimestamp = 0;
+let lastPitchTimestamp = 0;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -139,21 +143,29 @@ async function initializeEngines(): Promise<void> {
 
 function setupAudioPipeline(): void {
   audioCaptureEngine.on('audioFrame', (buffer: Float32Array) => {
+    const now = Date.now();
     const rms = buffer.reduce((s, v) => s + v * v, 0) / buffer.length;
-    const level = Math.sqrt(rms);
-    appEvents.emit('audioLevel', { rms: level, timestamp: Date.now() });
-    mainWindow?.webContents.send('audioLevel', { rms: level, timestamp: Date.now() });
+    const rmsLevel = Math.sqrt(rms);
+
+    // Throttle audio-level telemetry to ≈30 fps
+    if (now - lastAudioLevelTimestamp >= TELEMETRY_THROTTLE_MS) {
+      mainWindow?.webContents.send('audioLevel', { rms: rmsLevel, timestamp: now });
+      lastAudioLevelTimestamp = now;
+    }
 
     const onset = onsetDetector.processFrame(buffer);
     const pitchResult: PitchDetectionResult = pitchEngine.processFrame(buffer);
 
-    appEvents.emit('pitchDetected', pitchResult);
-    mainWindow?.webContents.send('pitchDetected', pitchResult);
+    // Throttle pitch telemetry to ≈30 fps
+    if (now - lastPitchTimestamp >= TELEMETRY_THROTTLE_MS) {
+      mainWindow?.webContents.send('pitchDetected', pitchResult);
+      lastPitchTimestamp = now;
+    }
 
     const midiNotes: MIDINote[] = midiConverter.convert(pitchResult, onset);
     for (const note of midiNotes) {
       midiOutput.sendNote(note);
-      appEvents.emit('midiNote', note);
+      // MIDI note events are discrete — forward every one immediately
       mainWindow?.webContents.send('midiNote', note);
       if (recording) {
         smfWriter.addNote(note);
@@ -163,7 +175,6 @@ function setupAudioPipeline(): void {
 
   audioCaptureEngine.on('error', (err: unknown) => {
     log.error('Audio capture error:', err);
-    appEvents.emit('appError', err);
     mainWindow?.webContents.send('appError', err);
   });
 }
